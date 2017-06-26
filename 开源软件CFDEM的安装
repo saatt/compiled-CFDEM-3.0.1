@@ -1,0 +1,179 @@
+CFDEM软件的安装主要包含 OpenFoam的编译，LIGGGHTS的编译，以及CFDEMCoupling的编译。
+要想这三个的编译成功来说还是有点繁琐，需要另外注意的是版本的配对问题。常见问题还包括集群的mpi配置问题。
+我这里是在自己的笔记本上安装。由于笔记本计较老，装的系统是windows xp，所以首先安装一个虚拟机软件VMware-workstation（可自行百度下载）。然后到ubuntu网站下载ubuntu-12.04.3-desktop-i386。在虚拟机中安装ubuntu系统，现在VM做得很智能，基本只要选中iso文件其他的就是傻瓜化安装了。
+接下去就是下载程序的源代码了，下载的时候注意到官网看下现在互相匹配的版本各是什么，在下载完的CFDEM源程序中的src文件夹下的etc下的OFversion.H 以及 cfdTools下的versionInfo.H文件有写。
+我这里用的版本如下 OpenFOAM 2.2.1 , LIGGGHTS 3.0.0，安装过程参考了官网论坛里的一个帖子http://cfdem.dcs-computing.com/?q=node/1575
+1.安装OpenFOAM
+各个版本在各种linux的安装可参见
+http://openfoamwiki.net/index.php/Installation/Linux
+>> sudo apt-get install git-core  curl
+>> mkdir OpenFOAM
+>> cd OpenFOAM
+到网站http://sourceforge.net/projects/foam/files/foam/2.2.1/ 下载 OpenFOAM 2.2.1 及ThirdParty-2.2.1
+解压到此目录下
+或
+>>wget http://optimate.dl.sourceforge.net/project/foam/foam/2.2.1/OpenFOAM-2.2.1.tgz
+>>wget http://optimate.dl.sourceforge.net/project/foam/foam/2.2.1/ThirdParty-2.2.1.tgz
+>>tar xzf OpenFOAM-2.2.1.tgz
+>>tar xzf ThirdParty-2.2.1.tgz
+安装依赖包
+>> sudo apt-get install build-essential 
+>> sudo apt-get install flex  bison  cmake zlib1g-dev qt4-dev-tools  libqt4-dev gnuplot libreadline-dev libncurses-dev libxt-dev
+设置环境变量
+>> gedit ~/.bashrc
+   add " source $HOME/OpenFOAM/OpenFOAM-2.2.1/etc/bashrc " in the .bashrc file  % setting environment variables
+>> source $HOME/.bashrc
+>> cd OpenFOAM/OpenFOAM-2.2.1/bin/
+>> foamSystemCheck
+   应该返回
+Checking basic system...
+-----------------------------------------------------------------------
+Shell:           /bin/bash
+Host:            ubuntu
+OS:              Linux version 3.8.0-29-generic
+User:            cfdem
+
+System check: PASS
+==================
+Continue OpenFOAM installation.
+ 
+接下来编译OpenFOAM和Paraview
+>> cd $WM_PROJECT_DIR  % Go to OpenFOAM/OpenFOAM-2.2.1 directory
+>> ./Allwmake %Build src
+>> cd $WM_THIRD_PARTY_DIR  %Enter into OpenFOAM/ThirdParty-2.2.1
+>> ./makeParaView
+>>./Allwclean
+>>./Allwmake      %compile for the openmpi
+>> cd
+>> cd $FOAM_UTILITIES/postProcessing/graphics/PV3Readers  %Enter into OpenFOAM/OpenFOAM-2.2.1/applications/utilities/postProcessing/graphics/PV3Readers
+>> ./Allwclean
+>> ./Allwmake
+>> cd
+>> cd OpenFOAM/OpenFOAM-2.2.1/bin/
+>> foamInstallationTest
+返回
+Base configuration ok.
+Critical systems ok.
+
+测试是否安装成功
+>> cd..
+>> cd..
+>> mkdir $USER-$WM_PROJECT_VERSION
+>> ls  %show the directory of -2.2.1
+>> cd -2.2.1
+>> mkdir -p $FOAM_RUN %create run directory
+>> cp -r $FOAM_TUTORIALS $FOAM_RUN
+>> cd run
+>> ls  % show the tutorials directory
+>> cd
+>> cd $FOAM_RUN %enter into OpenFOAM/-2.2.1/run
+>> cd tutorials/incompressible/icoFoam/cavity
+>> blockMesh
+>> icoFoam
+>> paraFoam  %open paraview and see the result
+ 
+2.安装LIGGGHTS
+>> cd
+>> sudo apt-get install octave3.2  python-numpy
+>> mkdir LIGGGHTS
+>> cd LIGGGHTS
+>> git clone git://github.com/CFDEMproject/LIGGGHTS-PUBLIC.git LIGGGHTS-PUBLIC
+>> cd LIGGGHTS-PUBLIC/src/
+>> make clean-all %rm -rf Obj_*
+>> make fedora_fpic
+>> make makelib
+>> make –f Makefile.lib fedora_fpic
+
+>> cd
+设置lpp
+>> cd LIGGGHTS
+>> git clone git://cfdem.git.sourceforge.net/gitroot/cfdem/lpp mylpp
+>> gedit ~/.bashrc
+   Add line "alias lpp="python -i $HOME/LIGGGHTS/mylpp/src/lpp.py"" and save
+>> source $HOME/.bashrc
+>> cd
+>> sudo ln -s $HOME/LIGGGHTS/LIGGGHTS-PUBLIC/src/lmp_fedora_fpic /usr/bin/liggghts
+>> which liggghts  % /usr/bin/liggghts
+>> sudo ln -s $HOME/LIGGGHTS/LIGGGHTS-PUBLIC/src/liblmp_fedora_fpic.a  /usr/bin/liblmp.a
+运行例子看是否安装成功
+>> cd
+>> cd LIGGGHTS/LIGGGHTS-PUBLIC/examples/LIGGGHTS/Tutorials_public/conveyor
+>> liggghts < in.conveyor 
+>> cd post
+>> lpp dump*.conveyor
+   ctrl+D
+>> paraview
+3.安装CFDEMcoupling
+>> cd
+>> mkdir CFDEM
+>> cd CFDEM
+>> git clone git://github.com/CFDEMproject/CFDEMcoupling-PUBLIC.git CFDEMcoupling-PUBLIC-$WM_PROJECT_VERSION
+>> cd CFDEMcoupling-PUBLIC-2.2.1
+设置环境变量
+>> gedit ~/.bashrc
+   Add lines as follows and save it
+#================================================#
+##- source cfdem env vars
+export CFDEM_VERSION=PUBLIC
+export CFDEM_PROJECT_DIR=$HOME/CFDEM/CFDEMcoupling-$CFDEM_VERSION-$WM_PROJECT_VERSION
+export CFDEM_SRC_DIR=$CFDEM_PROJECT_DIR/src
+export CFDEM_SOLVER_DIR=$CFDEM_PROJECT_DIR/applications/solvers
+export CFDEM_DOC_DIR=$CFDEM_PROJECT_DIR/doc
+export CFDEM_UT_DIR=$CFDEM_PROJECT_DIR/applications/utilities
+export CFDEM_TUT_DIR=$CFDEM_PROJECT_DIR/tutorials
+export CFDEM_PROJECT_USER_DIR=$HOME/CFDEM/$LOGNAME-$CFDEM_VERSION-$WM_PROJECT_VERSION
+export CFDEM_bashrc=$CFDEM_PROJECT_DIR/src/lagrangian/cfdemParticle/etc/bashrc
+export CFDEM_LIGGGHTS_SRC_DIR=$HOME/LIGGGHTS/LIGGGHTS-PUBLIC/src
+export CFDEM_LIGGGHTS_MAKEFILE_NAME=fedora_fpic
+export CFDEM_LPP_DIR=$HOME/LIGGGHTS/mylpp/src
+export CFDEM_PIZZA_DIR=$HOME/LIGGGHTS/PIZZA/gran_pizza_17Aug10/src
+. $CFDEM_bashrc
+#================================================#
+更新环境变量
+>> source $HOME/.bashrc 
+>> cd
+>> cfdemSysTest
+*******************
+system settings:
+*******************
+CFDEM_VERSION=PUBLIC
+couple to OF_VERSION=2.2.1
+compile option=Opt
+check if paths are set correctly
+valid:yes critical:yes - $CFDEM_PROJECT_DIR = /home/cfdem/CFDEM/CFDEMcoupling-PUBLIC-2.2.1
+valid:yes critical:no - $CFDEM_PROJECT_USER_DIR = /home/cfdem/CFDEM/cfdem-PUBLIC-2.2.1
+valid:yes critical:yes - $CFDEM_SRC_DIR = /home/cfdem/CFDEM/CFDEMcoupling-PUBLIC-2.2.1/src
+valid:yes critical:yes - $CFDEM_SOLVER_DIR = /home/cfdem/CFDEM/CFDEMcoupling-PUBLIC-2.2.1/applications/solvers
+valid:yes critical:yes - $CFDEM_TUT_DIR = /home/cfdem/CFDEM/CFDEMcoupling-PUBLIC-2.2.1/tutorials
+valid:yes critical:yes - $CFDEM_LIGGGHTS_SRC_DIR = /home/cfdem/LIGGGHTS/LIGGGHTS-PUBLIC/src
+valid:yes critical:yes - $CFDEM_LPP_DIR = /home/cfdem/LIGGGHTS/mylpp/src
+valid:yes critical:no - $CFDEM_PIZZA_DIR = /home/cfdem/LIGGGHTS/PIZZA/gran_pizza_17Aug10/src
+valid:NO  critical:no - $CFDEM_TEST_HARNESS_PATH = /home/cfdem/CFDEM/cfdem-PUBLIC-2.2.1/log/logFilesCFDEM-PUBLIC-2.2.1 does not exist
+注意几个critical 要valid
+ 
+最后编译LIGGGHTS作为一个链接库和CFDEM
+>> cfdemCompLIG
+>> cfdemCompCFDEM
+ 
+测试是否安装成功
+>>cfdemTestTUT
+ 
+ 如果运行liggghts 出现libmpi之类的出现，多半是openmpi安装有问题(openfoam好像disable了mpicxx，可到Allwmake里面改)，我是到openmpi官网上下载一个替换掉OpenFOAM/ThirdParty-2.2.1中的那个，做法是
+进入openmpim目录后
+mkdir bulid
+../configure  --prefix=$HOME/OpenFOAM/ThirdParty-2.2.1/platforms/linuxGcc/openmpi-1.6.3
+make
+make install
+ 
+另外由于我的笔记本配置太差了，运行 cfdemCompLIG 老是死机，原因是默认开了多核编译，处理方式是s
+cfdemSrc
+cd lagrangian/cfdemParticle/etc/
+gedit functions.sh
+把make $CFDEM_LIGGGHTS_MAKEFILE_NAME -j $WM_NCOMPPROCS  2>&1 | tee -a $logpath/$logfileName
+改为make $CFDEM_LIGGGHTS_MAKEFILE_NAME   2>&1 | tee -a $logpath/$logfileName
+ 很多时候都是mpi引起的问题，如编译openFoam，liggghts, cfdem用了不同的mpi 虽然编译可以通过，但运行出错，建议如果编译openFoam时改成了系统的mpi则统一用（openfoam 的bashrc改 WM_MPLIB=SYSTEMOPENMPI）我上面没改，则统一用ThirdParty里面的openmpi
+若在集群上出现lmpi_cxx错误，则将src里的make下的options文件中-lmip_cxx指定为全路径或删除
+http://cfdem.dcs-computing.com/?q=node/13
+https://wiki.chpc.utah.edu/pages/viewpage.action?pageId=475594765
+http://blog.goo.ne.jp/dalab-gnct/e/c7072b49a2628b29dc09eb21e6a4e480
+http://cfdem.dcs-computing.com/?q=system/files/instructions_0.txt
